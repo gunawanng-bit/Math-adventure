@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Math Adventure</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{--bg:#fff8e7;--card:#fff;--ink:#2b2d42;--mut:#6b6f85;--bd:#ffd166;--p:#7b5cff;--g:#06d6a0;--o:#ff8c42;--r:#ef476f;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1b1b2f;--card:#262645;--ink:#f4f4ff;--mut:#a9aac8;--bd:#5b4bb5;color-scheme:dark}}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;font-size:16px;line-height:1.45}
+nav{display:flex;gap:6px;overflow-x:auto;padding:10px;background:var(--p);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+nav button{flex:1;white-space:nowrap;border:0;border-radius:99px;padding:10px 14px;font:inherit;font-weight:700;background:#ffffff33;color:#fff;cursor:pointer}
+nav button.on{background:#fff;color:var(--p)}
+main{max-width:760px;margin:0 auto;padding:14px}
+.card{background:var(--card);border:3px solid var(--bd);border-radius:22px;padding:16px;margin-bottom:14px}
+h1,h2{margin:.2em 0}label{font-weight:700;display:block;margin:12px 0 6px}
+input,select,textarea{width:100%;font:inherit;padding:12px;border-radius:14px;border:2px solid var(--bd);background:var(--card);color:var(--ink)}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.opt{border:3px solid var(--bd);border-radius:16px;padding:10px;text-align:center;cursor:pointer;font-weight:700;user-select:none}
+.opt small{display:block;font-weight:400;color:var(--mut)}
+.opt.on{border-color:var(--p);background:#7b5cff22}
+.btn{border:0;border-radius:18px;padding:14px 18px;font:inherit;font-weight:800;color:#fff;cursor:pointer;background:var(--p);min-height:48px}
+.btn.g{background:var(--g);color:#06382c}.btn.o{background:var(--o)}.btn.r{background:var(--r)}.btn.s{padding:8px 12px;min-height:0;border-radius:12px}
+.big{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.big .btn{padding:18px 8px;font-size:1.05rem}
+.q{border-left:8px solid var(--o);border-radius:12px;padding:10px 12px;margin:10px 0;background:#ffd16622}
+.q textarea{min-height:80px}.tag{display:inline-block;border-radius:99px;padding:3px 10px;font-size:.85rem;font-weight:700;background:var(--g);color:#06382c}
+.tag.w{background:var(--o);color:#fff}.mut{color:var(--mut)}
+.mascot{font-size:64px;animation:b 2s infinite}@keyframes b{50%{transform:translateY(-8px)}}
+img.pv{max-width:100%;max-height:220px;border-radius:14px;margin-top:8px}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+#msg{position:fixed;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:12px 14px;border-radius:14px;display:none;z-index:9}
+</style></head><body>
+<nav id="nav"></nav><main id="app"></main><div id="msg"></div>
+<script>
+const $=s=>document.querySelector(s);
+const R=(a,b)=>Math.floor(Math.random()*(b-a+1))+a, P=a=>a[R(0,a.length-1)];
+const gcd=(a,b)=>b?gcd(b,a%b):a, lcm=(a,b)=>a/gcd(a,b)*b;
+const DIFF=[["EASY","Mudah","⭐"],["CHALLENGE","Menantang","🔥"],["HARD","Sulit","🚀"],["OLYMPIAD","Olimpiade","🏆"]];
+const TYPES=[["cerita","Soal Cerita"],["uraian","Uraian / Essay"],["logika","Logika / Teka-teki"]];
+const S={view:"home",grade:3,topic:"",instr:"",diff:0,types:["cerita"],count:5,img:null,ws:null,msgT:0};
+function toast(t){const m=$("#msg");m.textContent=t;m.style.display="block";clearTimeout(S.msgT);S.msgT=setTimeout(()=>m.style.display="none",4500)}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ---------- Mesin soal cadangan (deterministik, jawaban dihitung & diverifikasi) ---------- */
+const NAMES=["Budi","Sinta","Rafi","Dewi","Kevin","Aisyah","Putu","Maya","Dimas","Lina"];
+const ITEMS=["kelereng","stiker","buku","apel","pensil","permen"];
+function mx(grade,d){return [10,20,50,100,200,500,1000][Math.min(6,grade-3+d)]}
+const GEN={
+kpk:{cerita:[(M)=>{const g=R(1,Math.max(2,M/20|0)),m=R(2,9),n=R(2,9);if(gcd(m,n)>1)return;const a=g*m,b=g*n,L=lcm(a,b);if(L!==g*m*n)return;
+ return`Lampu merah menyala setiap ${a} detik dan lampu biru setiap ${b} detik. Keduanya menyala bersamaan pada detik ke-0. Pada detik keberapa keduanya menyala bersamaan lagi untuk pertama kali?`},
+ (M)=>{const g=R(2,Math.max(3,M/10|0)),m=R(2,8),n=R(2,8);if(gcd(m,n)>1||m===n)return;return`${P(NAMES)} memiliki ${g*m} permen dan ${g*n} cokelat. Semuanya dibagi ke sejumlah kantong yang isinya sama, tanpa sisa. Berapa kantong terbanyak yang dapat dibuat?`}],
+ uraian:[(M)=>{const g=R(2,Math.max(3,M/10|0)),m=R(2,9),n=R(2,9);if(gcd(m,n)>1||m===n)return;return`Tentukan KPK dan FPB dari ${g*m} dan ${g*n}. Tuliskan langkah penyelesaianmu!`}],
+ logika:[(M)=>{const g=R(2,6),m=R(2,7),n=R(2,7);if(gcd(m,n)>1||m===n)return;return`Dua bilangan memiliki FPB ${g} dan KPK ${g*m*n}. Salah satu bilangannya adalah ${g*m}. Berapakah bilangan yang lainnya?`}]},
+pecahan:{cerita:[(M,d)=>{const b=P([2,3,4,5,6,8]),dd=P([2,3,4,6,8,10]);if(b===dd)return;const a=R(1,b-1),c=R(1,dd-1);return`${P(NAMES)} minum ${a}/${b} liter susu pagi hari dan ${c}/${dd} liter susu sore hari. Berapa liter susu yang diminum seluruhnya? Tulis dalam pecahan paling sederhana.`}],
+ uraian:[(M,d)=>{const b=P([2,3,4,5,6,8,10,12]),dd=P([2,3,4,5,6,8,10,12]);if(b===dd)return;const a=R(1,b-1),c=R(1,dd-1);const op=P(["+","−"]);if(op==="−"&&a/b<=c/dd)return;return`Hitunglah ${a}/${b} ${op} ${c}/${dd} dan sederhanakan hasilnya!`}],
+ logika:[(M,d)=>{const b=P([2,3,4,5,6]),a=R(1,b-1),c=R(1,b-a);return`Sebuah pita dipotong ${a}/${b} bagian, lalu dipotong lagi ${c}/${b} bagian dari panjang semula. Berapa bagian pita yang masih tersisa?`}]},
+kali:{cerita:[(M)=>{const a=R(2,Math.max(3,M/5|0)),b=R(2,Math.max(3,M/4|0));return`Sebuah toko memiliki ${a} kotak ${P(ITEMS)}. Setiap kotak berisi ${b} buah. Berapa banyak seluruhnya?`},
+ (M)=>{const b=R(2,Math.max(3,M/10|0)),q=R(2,Math.max(3,M/5|0));return`${P(NAMES)} membagi ${b*q} ${P(ITEMS)} sama banyak kepada ${b} temannya. Berapa yang diterima tiap anak?`}],
+ uraian:[(M)=>{const a=R(M/5|0||2,M),b=R(2,Math.max(3,M/8|0));return`Hitunglah ${a} × ${b}!`},(M)=>{const b=R(2,Math.max(3,M/10|0)),q=R(5,M);return`Hitunglah ${b*q} ÷ ${b}!`}],
+ logika:[(M)=>{const x=R(2,9),y=R(2,9);return`Hasil kali dua bilangan adalah ${x*y}. Salah satunya ${x}. Berapa bilangan yang lain?`}]},
+luas:{cerita:[(M)=>{const p=R(3,Math.max(5,M/5|0)),l=R(2,p);return`Sebuah kebun berbentuk persegi panjang dengan panjang ${p} m dan lebar ${l} m. Berapa luas dan keliling kebun tersebut?`}],
+ uraian:[(M)=>{const s=R(3,Math.max(6,M/5|0));return`Sebuah persegi memiliki panjang sisi ${s} cm. Hitunglah luas dan kelilingnya!`}],
+ logika:[(M)=>{const p=R(4,Math.max(6,M/5|0)),l=R(2,p-1);return`Keliling sebuah persegi panjang adalah ${2*(p+l)} cm dan panjangnya ${p} cm. Berapa luasnya?`}]},
+desimal:{cerita:[(M)=>{const a=R(11,99)/10,b=R(11,99)/10;return`${P(NAMES)} membeli kain ${a.toFixed(1).replace(".",",")} m dan ${b.toFixed(1).replace(".",",")} m. Berapa meter panjang kain seluruhnya?`}],
+ uraian:[(M)=>{const a=R(11,Math.max(30,M))/10,b=R(11,Math.max(30,M))/10;if(a<=b)return;return`Hitunglah ${a.toFixed(1).replace(".",",")} − ${b.toFixed(1).replace(".",",")}!`}],
+ logika:[(M)=>{const a=R(1,9),b=R(1,9);return`Aku bilangan desimal dengan satu angka di belakang koma. Bagian bulatku ${a} dan angka di belakang komaku ${b}. Jika aku dikalikan 10, berapa hasilnya?`}]},
+rasio:{cerita:[(M)=>{const a=R(1,5),b=R(1,5),k=R(2,Math.max(3,M/10|0));if(a===b)return;return`Perbandingan kelereng kakak dan adik adalah ${a} : ${b}. Jumlah kelereng mereka ${(a+b)*k}. Berapa kelereng milik ${P(["kakak","adik"])}?`}],
+ uraian:[(M)=>{const a=R(2,9),b=R(2,9),k=R(2,6);if(gcd(a,b)>1)return;return`Sederhanakan perbandingan ${a*k} : ${b*k}!`}],
+ logika:[(M)=>{const a=R(1,4),b=R(1,4),k=R(2,8);if(a===b)return;return`Perbandingan umur ayah dan anak ${a+b} : ${a}. Jika umur anak ${a*k} tahun, berapa selisih umur mereka?`}]}
+};
+function pickKey(t){t=t.toLowerCase();if(/kpk|fpb/.test(t))return"kpk";if(/pecah/.test(t))return"pecahan";if(/kali|bagi/.test(t))return"kali";if(/luas|keliling|datar/.test(t))return"luas";if(/desimal/.test(t))return"desimal";if(/banding|rasio|skala/.test(t))return"rasio";return null}
+function genericQ(type,M){const x=R(2,Math.max(5,M/10|0)),m=R(2,9),k=R(1,M);
+ if(type==="cerita"){const n=P(NAMES),it=P(ITEMS);return`${n} memiliki ${m} kantong berisi ${x} ${it} setiap kantong, lalu mendapat tambahan ${k} ${it}. Berapa jumlah ${it} ${n} sekarang?`}
+ if(type==="uraian"){return`Hitunglah ${k} + ${m} × ${x}! Ingat urutan pengerjaan operasi hitung.`}
+ return`Aku sebuah bilangan. Jika aku dikalikan ${m} lalu ditambah ${k}, hasilnya ${x*m+k}. Berapakah aku?`}
+function build(){
+ const{grade,diff,types,count,topic}=S,M=mx(grade,diff),key=pickKey(topic),set=new Set(),out=[];let tries=0;
+ while(out.length<count&&tries++<count*60){
+  const type=types[out.length%types.length];let t;
+  const pool=key&&GEN[key][type]?GEN[key][type]:null;
+  try{t=pool?P(pool)(M,diff):genericQ(type,M)}catch(e){t=null}
+  if(t&&!set.has(t)){set.add(t);out.push(t)}
+ }
+ if(out.length<count)toast(`Hanya ${out.length} soal unik yang dapat dibuat untuk pengaturan ini.`);
+ return out;
+}
+async function generate(source){
+ if(S.busy)return;
+ if(!S.topic.trim())return toast("Isi topik matematika dulu ya.");
+ if(!S.types.length)return toast("Pilih minimal satu jenis soal.");
+ const n=parseInt(S.count,10);if(!(n>=1))return toast("Jumlah soal harus berupa angka minimal 1.");
+ if(n>30){S.count=30;toast("Jumlah soal dibatasi maksimal 30.")}
+ S.busy=true;toast("Membuat soal, mohon tunggu…");
+ const base={name:"",grade:S.grade,topic:S.topic.trim(),diff:S.diff,source,created:Date.now()};
+ let ws=null;
+ try{
+  const r=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({source,grade:S.grade,topic:S.topic.trim(),instr:S.instr,diff:DIFF[S.diff][0],types:S.types.map(k=>TYPES.find(t=>t[0]===k)[1]),count:+S.count,image:S.img})});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(d.error||("Server "+r.status));
+  ws={...base,qs:d.questions,engine:"ai",verified:d.verified||0,sources:d.sources||[]};
+  toast("Soal berhasil dibuat oleh AI.");
+ }catch(e){
+  toast("AI tidak tersedia ("+e.message+"). Soal dibuat oleh mesin cadangan, bukan AI.");
+ }
+ if(!ws)ws={...base,qs:build(),engine:"fallback"};
+ S.busy=false;S.ws=ws;S.view="result";render();
+}
+
+/* ---------- IndexedDB ---------- */
+const DB=()=>new Promise((res,rej)=>{try{const r=indexedDB.open("mathadventure",1);r.onupgradeneeded=()=>r.result.createObjectStore("ws",{keyPath:"id",autoIncrement:true});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}});
+async function dbDo(mode,fn){const db=await DB();return new Promise((res,rej)=>{const t=db.transaction("ws",mode),st=t.objectStore("ws"),r=fn(st);t.oncomplete=()=>res(r&&r.result);t.onerror=()=>rej(t.error)})}
+async function save(){
+ const w=S.ws;if(!w)return;
+ const name=prompt("Beri nama lembar soal:",w.name||`${w.topic} Kelas ${w.grade}`);if(name===null)return;
+ w.name=name.trim()||w.topic;
+ try{const id=await dbDo("readwrite",st=>st.put(w));w.id=id;toast("Tersimpan di Koleksi Soal.")}catch(e){toast("Gagal menyimpan: penyimpanan browser tidak tersedia.")}
+}
+
+/* ---------- PDF ---------- */
+function pdf(w){
+ if(!window.jspdf)return toast("Pustaka PDF belum termuat. Periksa koneksi internet lalu coba lagi.");
+ const doc=new jspdf.jsPDF({unit:"mm",format:"a4"}),W=210,H=297,m=15;
+ const head=()=>{doc.setFillColor(123,92,255);doc.rect(0,0,W,30,"F");doc.setFillColor(255,209,102);doc.rect(0,30,W,3,"F");
+  doc.setTextColor(255);doc.setFont("helvetica","bold");doc.setFontSize(20);doc.text("MATH ADVENTURE",m,14);
+  doc.setFontSize(11);doc.text(`Kelas ${w.grade} SD  |  Topik: ${w.topic}  |  Tingkat: ${DIFF[w.diff][1]}`,m,23,{maxWidth:W-2*m})};
+ head();let y=42;
+ doc.setTextColor(60);doc.setFont("helvetica","normal");doc.setFontSize(11);
+ doc.text("Nama: ................................................   Tanggal: ....................   Nilai: ........",m,y);y+=10;
+ w.qs.forEach((q,i)=>{
+  doc.setFontSize(12);const lines=doc.splitTextToSize(q,W-2*m-16),h=lines.length*6+22;
+  if(y+h>H-15){doc.addPage();head();y=42}
+  doc.setDrawColor(255,140,66);doc.setLineWidth(.6);doc.roundedRect(m,y,W-2*m,h,3,3);
+  doc.setFillColor(255,140,66);doc.circle(m+7,y+7,4.5,"F");doc.setTextColor(255);doc.setFont("helvetica","bold");doc.text(String(i+1),m+7,y+8.3,{align:"center"});
+  doc.setTextColor(30);doc.setFont("helvetica","normal");doc.text(lines,m+15,y+8);
+  doc.setDrawColor(200);doc.setLineWidth(.2);doc.line(m+5,y+h-5,W-m-5,y+h-5);
+  y+=h+6;
+ });
+ doc.save((w.name||w.topic).replace(/[^\w\-]+/g,"_")+".pdf");
+}
+
+/* ---------- Tampilan ---------- */
+const NAV=[["home","Beranda"],["make","Buat Soal"],["lib","Koleksi Soal"],["about","Tentang Aplikasi"]];
+function render(){
+ $("#nav").innerHTML=NAV.map(([k,t])=>`<button class="${(S.view===k||(k==="make"&&S.view==="result"))?"on":""}" data-v="${k}">${t}</button>`).join("");
+ $("#nav").onclick=e=>{const v=e.target.dataset.v;if(v){S.view=v;render();scrollTo(0,0)}};
+ const a=$("#app");
+ if(S.view==="home")a.innerHTML=`<div class="card" style="text-align:center"><div class="mascot">🦉</div><h1>Math Adventure</h1><p>Buat lembar soal matematika SD kelas 3–6 dalam hitungan detik, lalu unduh sebagai PDF siap cetak.</p><button class="btn g" data-go="make">🚀 Mulai Petualangan</button></div>
+ <div class="card"><b>⭐ Pilih tingkat · 🧩 Pilih jenis soal · 📄 Unduh PDF · 📚 Simpan di koleksi</b></div>`;
+ if(S.view==="make")makeView(a);
+ if(S.view==="result")resultView(a);
+ if(S.view==="lib")libView(a);
+ if(S.view==="about")a.innerHTML=`<div class="card"><h2>Tentang Aplikasi</h2><p>Math Adventure membantu orang tua dan guru membuat lembar soal matematika SD.</p>
+ <p><b>Sumber soal.</b> Soal dibuat oleh AI (Gemini) lewat server. Hitungan aritmetika yang bisa diperiksa dicek otomatis, tetapi soal cerita dan logika tetap sebaiknya dibaca guru atau orang tua sebelum dipakai. Jika AI tidak tersedia, aplikasi memakai mesin cadangan dan memberi label "bukan AI".</p>
+ <p><b>Penyimpanan.</b> Lembar soal disimpan di browser perangkat ini (IndexedDB), tanpa login. Data tidak otomatis tersinkron ke perangkat lain dan dapat hilang bila data browser dihapus.</p></div>`;
+ if(S.view==='home')a.onclick=e=>{if(e.target.dataset.go){S.view=e.target.dataset.go;render()}};
+}
+function makeView(a){
+ a.innerHTML=`<div class="card"><h2>🧮 Buat Soal</h2>
+ <label>A. Kelas</label><select id="gr">${[3,4,5,6].map(g=>`<option value="${g}" ${S.grade===g?"selected":""}>Kelas ${g} SD</option>`).join("")}</select>
+ <label>B. Topik Matematika</label><input id="tp" placeholder="mis. KPK dan FPB, Pecahan, Luas dan Keliling" value="${esc(S.topic)}">
+ <label>C. Foto Soal (opsional)</label><input id="im" type="file" accept="image/*" capture="environment">
+ <div id="pv">${S.img?`<img class="pv" src="${S.img}"><div class="acts"><button class="btn s r" id="rm">Hapus foto</button></div>`:""}</div>
+ <p class="mut" style="font-size:.9rem">Foto dikirim ke AI sebagai referensi bila layanan AI aktif. Jangan unggah foto yang memuat data pribadi anak.</p>
+ <label>D. Instruksi Tambahan</label><textarea id="in" rows="3" placeholder="mis. Gunakan konteks kehidupan sehari-hari.">${esc(S.instr)}</textarea>
+ <label>E. Tingkat Kesulitan</label><div class="row">${DIFF.map((d,i)=>`<div class="opt ${S.diff===i?"on":""}" data-d="${i}">${d[2]} ${d[0]}<small>${d[1]}</small></div>`).join("")}</div>
+ <label>F. Jenis Soal</label><div class="row">${TYPES.map(t=>`<div class="opt ${S.types.includes(t[0])?"on":""}" data-t="${t[0]}">${t[1]}</div>`).join("")}</div>
+ <label>G. Jumlah Soal (1–30)</label><input id="ct" type="number" min="1" max="30" inputmode="numeric" value="${S.count}">
+ <label>H. Sumber Soal</label><div class="big"><button class="btn o" id="web">🌐 DARI WEB</button><button class="btn g" id="ai">🤖 DIBUAT AI</button></div>
+ <p class="mut" style="font-size:.85rem">Jika AI tidak tersedia, aplikasi memakai mesin cadangan dan memberi label yang jelas.</p></div>`;
+ const sync=()=>{S.grade=+$("#gr").value;S.topic=$("#tp").value;S.instr=$("#in").value;S.count=$("#ct").value};
+ a.oninput=sync;
+ a.onclick=e=>{const t=e.target.closest("[data-d],[data-t],#web,#ai,#rm");if(!t)return;sync();
+  if(t.dataset.d){S.diff=+t.dataset.d;makeView(a)}
+  else if(t.dataset.t){const k=t.dataset.t;S.types=S.types.includes(k)?S.types.filter(x=>x!==k):[...S.types,k];makeView(a)}
+  else if(t.id==="rm"){S.img=null;makeView(a)}
+  else generate(t.id)};
+ $("#im").onchange=e=>{const f=e.target.files[0];if(!f)return;if(f.size>8e6)return toast("Ukuran foto maksimal 8 MB.");const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,1024/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=im.width*k;c.height=im.height*k;c.getContext("2d").drawImage(im,0,0,c.width,c.height);sync();S.img=c.toDataURL("image/jpeg",.8);makeView(a)};im.src=r.result};r.readAsDataURL(f)};
+}
+function resultView(a){
+ const w=S.ws;if(!w){S.view="make";return render()}
+ a.innerHTML=`<div class="card"><h2>📝 ${esc(w.name||"Lembar Soal")}</h2>
+ <p>Kelas ${w.grade} SD · ${esc(w.topic)} · ${DIFF[w.diff][2]} ${DIFF[w.diff][1]} · ${w.qs.length} soal</p>
+ ${w.engine==="ai"?`<span class="tag">Dibuat oleh AI (Gemini)${w.verified?` · ${w.verified} soal hitungannya terverifikasi`:""}</span>`:`<span class="tag w">Dibuat oleh mesin cadangan, bukan AI</span>`}
+ ${(w.sources&&w.sources.length)?`<p class="mut" style="font-size:.85rem">Referensi: ${w.sources.map(x=>`<a href="${esc(x.uri)}" target="_blank" rel="noopener">${esc(x.title||x.uri)}</a>`).join(", ")}</p>`:""}
+ ${w.qs.map((q,i)=>`<div class="q"><b>Soal ${i+1}</b> <button class="btn s r" data-x="${i}" style="float:right">Hapus</button><textarea data-e="${i}">${esc(q)}</textarea></div>`).join("")||"<p>Semua soal dihapus.</p>"}
+ <div class="acts"><button class="btn o" id="re">🔄 Buat Lagi</button><button class="btn g" id="sv">💾 Simpan</button><button class="btn" id="pd">⬇️ Unduh PDF</button></div></div>`;
+ a.oninput=e=>{if(e.target.dataset.e!=null)w.qs[+e.target.dataset.e]=e.target.value};
+ a.onclick=e=>{const t=e.target;
+  if(t.dataset.x!=null){w.qs.splice(+t.dataset.x,1);resultView(a)}
+  else if(t.id==="re"){generate(w.source)}
+  else if(t.id==="sv")save();
+  else if(t.id==="pd"){if(!w.qs.length)return toast("Tidak ada soal.");pdf(w)}};
+}
+async function libView(a){
+ a.innerHTML=`<div class="card"><h2>📚 Koleksi Soal</h2><p class="mut">Disimpan di browser perangkat ini dan tidak otomatis tersinkron ke perangkat lain.</p><div id="ls">Memuat…</div></div>`;
+ let items=[];try{items=await dbDo("readonly",st=>st.getAll())}catch(e){$("#ls").textContent="Penyimpanan browser tidak tersedia di sini.";return}
+ items.sort((x,y)=>y.created-x.created);
+ $("#ls").innerHTML=items.length?items.map(w=>`<div class="q"><b>${esc(w.name)}</b><br><span class="mut">Kelas ${w.grade} · ${esc(w.topic)} · ${DIFF[w.diff][1]} · ${w.qs.length} soal</span>
+ <div class="acts"><button class="btn s" data-o="${w.id}">Buka / Edit</button><button class="btn s g" data-p="${w.id}">PDF</button><button class="btn s r" data-r="${w.id}">Hapus</button></div></div>`).join(""):"Belum ada lembar soal tersimpan.";
+ a.onclick=async e=>{const d=e.target.dataset;const id=+(d.o||d.p||d.r||0);if(!id)return;const w=items.find(x=>x.id===id);
+  if(d.o){S.ws=w;S.view="result";render()}
+  else if(d.p)pdf(w);
+  else if(d.r&&confirm("Hapus lembar soal ini?")){await dbDo("readwrite",st=>st.delete(id));libView(a)}};
+}
+render();
+</script></body></html>
