@@ -26,7 +26,8 @@ module.exports = async (req, res) => {
   if (![3, 4, 5, 6].includes(grade) || !topic || !LEVEL[b.diff] || !Array.isArray(b.types) || !b.types.length)
     return res.status(400).json({ error: "Input tidak valid" });
   const web = b.source === "web";
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const candidates = [...new Set([process.env.GEMINI_MODEL, "gemini-3.5-flash-lite", "gemini-3.7-flash", "gemini-2.5-flash-lite"].filter(Boolean))];
+  let model = candidates[0];
 
   const prompt = `Kamu guru matematika SD di Indonesia. Buat ${count} soal ORISINAL dalam bahasa Indonesia.
 Kelas: ${grade} SD. Topik: ${topic}. Tingkat: ${LEVEL[b.diff]}.
@@ -46,13 +47,19 @@ Keluarkan HANYA JSON: {"questions":[{"text":"teks soal","expr":"ekspresi aritmet
   else body.generationConfig.responseMimeType = "application/json";
 
   try {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify(body),
-    });
-    const d = await r.json();
-    if (!r.ok) return res.status(502).json({ error: `Layanan AI menolak (${r.status}): ${(d.error && d.error.message || "").slice(0, 120)}` });
+    let d = null, last = "";
+    for (const m of candidates) {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify(body),
+      });
+      const j = await r.json();
+      if (r.ok) { d = j; model = m; break; }
+      last += `${m}: ${r.status}; `;
+      if (r.status !== 429 && r.status !== 404 && r.status !== 503) break; // galat lain: berhenti
+    }
+    if (!d) return res.status(502).json({ error: `Semua model ditolak (${last.trim()})` });
     const cand = d.candidates && d.candidates[0];
     const text = ((cand && cand.content && cand.content.parts) || []).map(p => p.text || "").join("");
     const j = JSON.parse((text.match(/\{[\s\S]*\}/) || [""])[0]);
