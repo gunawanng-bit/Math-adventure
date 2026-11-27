@@ -29,6 +29,7 @@ input,select,textarea{width:100%;font:inherit;padding:12px;border-radius:14px;bo
 img.pv{max-width:100%;max-height:220px;border-radius:14px;margin-top:8px}
 .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 #msg{position:fixed;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:12px 14px;border-radius:14px;display:none;z-index:9}
+.qn{display:flex;gap:10px;margin:14px 0;font-size:1.05rem}.qn b{min-width:1.8em}.qn span{flex:1;outline:0;padding:2px 4px}.qn span:focus{background:#ffd16633;border-radius:6px}
 </style></head><body>
 <nav id="nav"></nav><main id="app"></main><div id="msg"></div>
 <script>
@@ -37,7 +38,7 @@ const R=(a,b)=>Math.floor(Math.random()*(b-a+1))+a, P=a=>a[R(0,a.length-1)];
 const gcd=(a,b)=>b?gcd(b,a%b):a, lcm=(a,b)=>a/gcd(a,b)*b;
 const DIFF=[["EASY","Mudah","⭐"],["CHALLENGE","Menantang","🔥"],["HARD","Sulit","🚀"],["OLYMPIAD","Olimpiade","🏆"]];
 const TYPES=[["cerita","Soal Cerita"],["uraian","Uraian / Essay"],["logika","Logika / Teka-teki"]];
-const S={view:"make",grade:3,topic:"",instr:"",diff:0,types:["cerita"],count:5,img:null,ws:null,msgT:0};
+const S={view:"make",grade:3,topic:"",instr:"",diff:0,types:["cerita","uraian","logika"],count:5,img:null,ws:null,msgT:0};
 function toast(t){const m=$("#msg");m.textContent=t;m.style.display="block";clearTimeout(S.msgT);S.msgT=setTimeout(()=>m.style.display="none",4500)}
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
@@ -156,16 +157,15 @@ function render(){
 }
 function makeView(a){
  a.innerHTML=`<div class="card"><h2>🧮 Buat Soal</h2>
- <label>A. Kelas</label><select id="gr">${[3,4,5,6].map(g=>`<option value="${g}" ${S.grade===g?"selected":""}>Kelas ${g} SD</option>`).join("")}</select>
- <label>B. Topik Matematika</label><input id="tp" placeholder="mis. KPK dan FPB, Pecahan, Luas dan Keliling" value="${esc(S.topic)}">
- <label>C. Foto Soal (opsional)</label><input id="im" type="file" accept="image/*" capture="environment">
+ <label>Kelas</label><select id="gr">${[3,4,5,6].map(g=>`<option value="${g}" ${S.grade===g?"selected":""}>Kelas ${g} SD</option>`).join("")}</select>
+ <label>Topik Matematika</label><input id="tp" placeholder="mis. KPK dan FPB, Pecahan, Luas dan Keliling" value="${esc(S.topic)}">
+ <label>Foto Soal (opsional)</label><input id="im" type="file" accept="image/*" capture="environment">
  <div id="pv">${S.img?`<img class="pv" src="${S.img}"><div class="acts"><button class="btn s r" id="rm">Hapus foto</button></div>`:""}</div>
  <p class="mut" style="font-size:.9rem">Foto dikirim ke AI sebagai referensi bila layanan AI aktif. Jangan unggah foto yang memuat data pribadi anak.</p>
- <label>D. Instruksi Tambahan</label><textarea id="in" rows="3" placeholder="mis. Gunakan konteks kehidupan sehari-hari.">${esc(S.instr)}</textarea>
- <label>E. Tingkat Kesulitan</label><div class="row">${DIFF.map((d,i)=>`<div class="opt ${S.diff===i?"on":""}" data-d="${i}">${d[2]} ${d[0]}<small>${d[1]}</small></div>`).join("")}</div>
- <label>F. Jenis Soal</label><div class="row">${TYPES.map(t=>`<div class="opt ${S.types.includes(t[0])?"on":""}" data-t="${t[0]}">${t[1]}</div>`).join("")}</div>
- <label>G. Jumlah Soal (1–30)</label><input id="ct" type="number" min="1" max="30" inputmode="numeric" value="${S.count}">
- <label>H. Sumber Soal</label><div class="big"><button class="btn o" id="web">🌐 DARI WEB</button><button class="btn g" id="ai">🤖 DIBUAT AI</button></div>
+ <label>Instruksi Tambahan</label><textarea id="in" rows="3" placeholder="mis. Gunakan konteks kehidupan sehari-hari.">${esc(S.instr)}</textarea>
+ <label>Tingkat Kesulitan</label><div class="row">${DIFF.map((d,i)=>`<div class="opt ${S.diff===i?"on":""}" data-d="${i}">${d[2]} ${d[0]}<small>${d[1]}</small></div>`).join("")}</div>
+ <label>Jumlah Soal (1–30)</label><input id="ct" type="number" min="1" max="30" inputmode="numeric" value="${S.count}">
+ <label>Sumber Soal</label><div class="big"><button class="btn o" id="web">🌐 DARI WEB</button><button class="btn g" id="ai">🤖 DIBUAT AI</button></div>
  <p class="mut" style="font-size:.85rem">Jika AI tidak tersedia, aplikasi memakai mesin cadangan dan memberi label yang jelas.</p></div>`;
  const sync=()=>{S.grade=+$("#gr").value;S.topic=$("#tp").value;S.instr=$("#in").value;S.count=$("#ct").value};
  a.oninput=sync;
@@ -182,9 +182,9 @@ function resultView(a){
  <p>Kelas ${w.grade} SD · ${esc(w.topic)} · ${DIFF[w.diff][2]} ${DIFF[w.diff][1]} · ${w.qs.length} soal</p>
  ${w.engine==="ai"?`<span class="tag">Dibuat oleh AI (Gemini)${w.verified?` · ${w.verified} soal hitungannya terverifikasi`:""}</span>`:`<span class="tag w">Dibuat oleh mesin cadangan, bukan AI</span>`}
  ${(w.sources&&w.sources.length)?`<p class="mut" style="font-size:.85rem">Referensi: ${w.sources.map(x=>`<a href="${esc(x.uri)}" target="_blank" rel="noopener">${esc(x.title||x.uri)}</a>`).join(", ")}</p>`:""}
- ${w.qs.map((q,i)=>`<div class="q"><b>Soal ${i+1}</b> <button class="btn s r" data-x="${i}" style="float:right">Hapus</button><textarea data-e="${i}">${esc(q)}</textarea></div>`).join("")||"<p>Semua soal dihapus.</p>"}
+ ${w.qs.map((q,i)=>`<div class="qn"><b>${i+1}.</b><span contenteditable="true" data-e="${i}">${esc(q)}</span></div>`).join("")||"<p>Tidak ada soal.</p>"}
  <div class="acts"><button class="btn o" id="re">🔄 Buat Lagi</button><button class="btn g" id="sv">💾 Simpan</button><button class="btn" id="pd">⬇️ Unduh PDF</button></div></div>`;
- a.oninput=e=>{if(e.target.dataset.e!=null)w.qs[+e.target.dataset.e]=e.target.value};
+ a.oninput=e=>{if(e.target.dataset.e!=null)w.qs[+e.target.dataset.e]=(e.target.innerText||"").trim()};
  a.onclick=e=>{const t=e.target;
   if(t.dataset.x!=null){w.qs.splice(+t.dataset.x,1);resultView(a)}
   else if(t.id==="re"){generate(w.source)}
