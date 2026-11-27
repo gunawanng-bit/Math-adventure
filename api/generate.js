@@ -42,24 +42,34 @@ Keluarkan HANYA JSON: {"questions":[{"text":"teks soal","expr":"ekspresi aritmet
   const m = typeof b.image === "string" && b.image.match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/);
   if (m) parts.push({ inlineData: { mimeType: m[1], data: m[2] } });
 
-  const body = { contents: [{ parts }], generationConfig: { temperature: 0.9 } };
-  if (web) body.tools = [{ google_search: {} }];
-  else body.generationConfig.responseMimeType = "application/json";
-
-  try {
-    let d = null, last = "";
+  const mkBody = (useSearch) => {
+    const x = { contents: [{ parts }], generationConfig: { temperature: 0.9 } };
+    if (useSearch) x.tools = [{ google_search: {} }];
+    else x.generationConfig.responseMimeType = "application/json";
+    return x;
+  };
+  const run = async (useSearch) => {
+    let last = "";
     for (const m of candidates) {
       const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-        body: JSON.stringify(body),
+        body: JSON.stringify(mkBody(useSearch)),
       });
       const j = await r.json();
-      if (r.ok) { d = j; model = m; break; }
+      if (r.ok) return { d: j, m, last };
       last += `${m}: ${r.status}; `;
       if (r.status !== 429 && r.status !== 404 && r.status !== 503) break; // galat lain: berhenti
     }
-    if (!d) return res.status(502).json({ error: `Semua model ditolak (${last.trim()})` });
+    return { d: null, last };
+  };
+
+  try {
+    let webFailed = false;
+    let o = await run(web);
+    if (!o.d && web) { webFailed = true; o = await run(false); } // pencarian web ditolak: pakai AI tanpa web
+    if (!o.d) return res.status(502).json({ error: `Semua model ditolak (${o.last.trim()})` });
+    const d = o.d; model = o.m;
     const cand = d.candidates && d.candidates[0];
     const text = ((cand && cand.content && cand.content.parts) || []).map(p => p.text || "").join("");
     const j = JSON.parse((text.match(/\{[\s\S]*\}/) || [""])[0]);
@@ -74,9 +84,9 @@ Keluarkan HANYA JSON: {"questions":[{"text":"teks soal","expr":"ekspresi aritmet
     }
     if (!out.length) return res.status(502).json({ error: "AI tidak menghasilkan soal yang valid" });
     const gm = cand && cand.groundingMetadata;
-    const sources = web && gm && gm.groundingChunks
+    const sources = web && !webFailed && gm && gm.groundingChunks
       ? gm.groundingChunks.filter(c => c.web).slice(0, 5).map(c => ({ title: c.web.title, uri: c.web.uri })) : [];
-    res.status(200).json({ questions: out.slice(0, count), verified, sources, model });
+    res.status(200).json({ questions: out.slice(0, count), verified, sources, model, webFailed });
   } catch (e) {
     res.status(502).json({ error: "Gagal memproses jawaban AI" });
   }
