@@ -97,8 +97,8 @@ async function generate(source){
   const r=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({source,grade:S.grade,topic:S.topic.trim(),instr:S.instr,diff:DIFF[S.diff][0],types:S.types.map(k=>TYPES.find(t=>t[0]===k)[1]),count:+S.count,image:S.img})});
   const d=await r.json().catch(()=>({}));
   if(!r.ok)throw new Error(d.error||("Server "+r.status));
-  ws={...base,qs:d.questions,engine:"ai",verified:d.verified||0,sources:d.sources||[]};
-  toast("Soal berhasil dibuat oleh AI.");
+  ws={...base,source:d.webFailed?"ai":source,qs:d.questions,engine:"ai",verified:d.verified||0,sources:d.sources||[]};
+  toast(d.webFailed?"Pencarian web tidak tersedia di paket gratis. Soal dibuat AI tanpa referensi web.":"Soal berhasil dibuat oleh AI.");
  }catch(e){
   toast("AI tidak tersedia ("+e.message+"). Soal dibuat oleh mesin cadangan, bukan AI.");
  }
